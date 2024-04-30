@@ -1,0 +1,8 @@
+{
+  "site_url": "https://www.jpq.me/",
+  "download_dir": "F:\\Games\\video",
+  "video_origin": "https://l0.g8wp.com/",
+  "allow_resolution": ["FHD", "HD"],
+  "concurrent": 50,
+  "timeout": 300
+}
