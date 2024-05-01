@@ -1,30 +1,25 @@
 import re
 import json
 import asyncio
-import aiofiles
 import aiohttp
 
-from aiohttp import ClientSession, ClientTimeout, TCPConnector
+from aiohttp import ClientTimeout, TCPConnector
 from bs4 import BeautifulSoup
-from fake_useragent import UserAgent
-from os import path, makedirs, remove
+from os import path, makedirs
 from typing import List
+from base_parser import BaseParser
 
-from util_libs.color import blue_txt, red_txt, green_txt
 
-
-class Parser:
+class Parser(BaseParser):
     _config: None | dict[str, any]
     _current_dir: str
     _config_file_path: str
-    _headers: dict[str, any]
-    _session: ClientSession | None = None
     _download_dir: str
 
     def __init__(self) -> None:
+        super().__init__()
         self._current_dir = path.dirname(path.abspath(__file__))
         self._config_file_path = path.join(self._current_dir, "config.json")
-        self._headers = {"User-Agent": UserAgent().random}
 
         with open(self._config_file_path, "r") as file:
             # 读取配置文件
@@ -40,38 +35,40 @@ class Parser:
                 print("请求错误，响应状态码：{}".format(response.status))
                 return None
 
-    # 开始解析
-    async def start_parse(self):
-        base_url = self._config.get("site_url")
+    async def create_session(self):
         concurrent = int(self._config.get("concurrent"))
         timeout = int(self._config.get("timeout"))
 
-        # session 配置
         client_timeout = ClientTimeout(total=timeout)
         tcp_connector = TCPConnector(limit=concurrent)
 
-        async with ClientSession(timeout=client_timeout, connector=tcp_connector) as session:
+        async with aiohttp.ClientSession(timeout=client_timeout, connector=tcp_connector) as session:
             self._session = session
-            content = await self.fetch_page(base_url)
+            await self.crawling()
 
-            if content is None:
-                return
+    # 开始解析
+    async def crawling(self):
+        base_url = self._config.get("site_url")
+        content = await self.fetch_page(base_url)
 
-            soup = BeautifulSoup(content, "html.parser")
-            links = soup.find_all("a", string=["视频", "漫画"])
+        if content is None:
+            return
 
-            for link in links:
-                url = link.attrs.get("href") if "href" in link.attrs else None
-                type = link.string
+        soup = BeautifulSoup(content, "html.parser")
+        links = soup.find_all("a", string=["视频", "漫画"])
 
-                if url is None:
-                    continue
+        for link in links:
+            url = link.attrs.get("href") if "href" in link.attrs else None
+            type = link.string
 
-                if type == "视频":
-                    await self.parse_video(url)
-                    pass
-                elif type == "漫画":
-                    pass
+            if url is None:
+                continue
+
+            if type == "视频":
+                await self.parse_video(url)
+                pass
+            elif type == "漫画":
+                pass
 
     async def parse_video(self, url: str):
         content = await self.fetch_page(url)
@@ -142,8 +139,6 @@ class Parser:
 
         await asyncio.gather(*requests)
 
-        print(green_txt("所有视频已成功下载!"))
-
     async def download_video(self, url: str, folder_name: str, file_name: str):
         # 格式化文件名称,去除不合规符号
         for char in r'\/:*?"<>|':
@@ -157,32 +152,3 @@ class Parser:
 
         makedirs(folder_path, exist_ok=True)
         await self.download(url, file_path)
-
-    async def download(self, url: str, file_path: str, retry=0):
-        try:
-            remove(file_path)
-        except FileNotFoundError:
-            pass
-        finally:
-            try:
-                if retry > 3:
-                    print(red_txt("已3次下载失败，即将终止下载：") + file_path)
-                    async with aiofiles.open(file_path + '.fail', 'w') as file:
-                        await file.write("")
-                    return
-
-                # 设置请求过期时间
-                t = int(self._config.get("timeout"))
-                timeout = ClientTimeout(total=retry * t * 5 + t)
-
-                async with self._session.get(url, headers=self._headers, timeout=timeout) as response:
-                    if response.status == 200:
-                        async with aiofiles.open(file_path, "wb") as f:
-                            print(blue_txt("{}下载：".format("开始" if not retry else "第{}次重新".format(retry))) + file_path)
-                            async for chunk in response.content.iter_any():
-                                await f.write(chunk)
-                    else:
-                        print(red_txt("请求失败：") + "{}，响应状态码--{}".format(url, response.status))
-            except (aiohttp.ClientPayloadError, asyncio.TimeoutError):
-                print(red_txt("下载失败：") + "{}，即将重试！".format(file_path))
-                await self.download(url, file_path, retry + 1)
