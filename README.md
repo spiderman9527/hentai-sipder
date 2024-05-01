@@ -21,5 +21,5 @@ pip install -r requirements.txt
 python src/main.py
 ```
 #### 4. 站点列表
-- [https://www.jpg.me（开发中）](https://www.jpg.me)
+- [https://www.jpq.me（开发中）](https://www.jpq.me)
 - [https://akuma.moe（计划中）](https://akuma.moe)
