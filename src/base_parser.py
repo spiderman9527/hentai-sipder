@@ -1,16 +1,19 @@
 import aiohttp
 import asyncio
+import random
 import aiofiles
 
 from fake_useragent import UserAgent
 from os import remove, path
 from util_libs.color import red_txt, blue_txt, green_txt, orange_txt
+from util_libs.date import datetime_title
 
 
 class BaseParser:
     # 单位s
     _timeout: int
     _session: aiohttp.ClientSession
+    _semaphore: asyncio.Semaphore
     _headers: dict[str, str]
     _count: dict[str, int]
 
@@ -18,6 +21,7 @@ class BaseParser:
         self._timeout = 300
         self._headers = {"User-Agent": UserAgent().random}
         self._count = {"success": 0, "fail": 0, "request_err": 0}
+        self._semaphore = asyncio.Semaphore(30)
 
     @property
     def success(self) -> int:
@@ -47,13 +51,15 @@ class BaseParser:
         asyncio.run(self.create_session())
 
         success_txt = green_txt("成功：{}".format(self.success))
-        fail_txt = red_txt("失败：{}".format(self.fail)) 
+        fail_txt = red_txt("失败：{}".format(self.fail))
         request_err_txt = orange_txt("请求失败：{}".format(self.request_err))
 
-        print(blue_txt("[执行完毕]：") + success_txt + "，" + fail_txt + "，" + request_err_txt)
+        print(blue_txt(datetime_title("执行完毕")) + success_txt + "，" + fail_txt + "，" + request_err_txt)
 
     async def create_session(self):
-        async with aiohttp.ClientSession() as session:
+        connector = aiohttp.TCPConnector(limit=50)
+
+        async with aiohttp.ClientSession(connector=connector) as session:
             self._session = session
             await self.crawling()
 
@@ -64,7 +70,7 @@ class BaseParser:
         try:
             if retry > 2:
                 self.fail += 1
-                print(red_txt("已3次下载失败，即将终止下载：") + file_path)
+                print(red_txt(datetime_title("已3次下载失败，即将终止下载：")) + file_path)
                 return
 
             async with self._session.head(url, headers=self._headers) as res:
@@ -97,7 +103,7 @@ class BaseParser:
                 else:
                     await self.full_download(url, file_path, retry)
         except (aiohttp.ClientPayloadError, asyncio.TimeoutError):
-            print(red_txt("[下载失败]：") + "{}，即将重试！".format(file_path))
+            print(red_txt(datetime_title("下载失败")) + "{}，即将重试！".format(file_path))
             await self.download(url, file_path, retry + 1)
 
     # 全量下载
@@ -107,13 +113,18 @@ class BaseParser:
                 if path.exists(file_path):
                     remove(file_path)
                 async with aiofiles.open(file_path, "wb") as f:
-                    print(blue_txt("[{}下载]：".format("开始" if not retry else "第{}次重新".format(retry))) + file_path)
+                    print(blue_txt(datetime_title("{}下载".format("开始" if not retry else "第{}次重新".format(retry)))) + file_path)
 
                     async for chunk in res.content.iter_any():
                         await f.write(chunk)
 
                     self.success += 1
-                    print(green_txt("[下载成功]" + file_path))
+                    print(green_txt(datetime_title("下载成功")) + file_path)
             else:
                 self.request_err += 1
-                print(orange_txt("[请求失败]：") + "{}，响应状态码--{}".format(url, res.status))
+                print(orange_txt(datetime_title("请求失败")) + "{}，响应状态码--{}".format(url, res.status))
+
+    # 默认5-15秒的延迟
+    async def random_sleep(self, start=5, end=15):
+        random_sleep_time = random.uniform(start, end)
+        await asyncio.sleep(random_sleep_time)

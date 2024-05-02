@@ -3,5 +3,3 @@
 ignore = E501
 
 exclude = .git,venv
-
-inline-quotes = '

@@ -1,5 +1,5 @@
-from website.www_jpq_me.spider import Parser
+from website.www_jpq_me.spider import JPQParser
 
-parser = Parser()
+parser = JPQParser()
 
 parser.start()

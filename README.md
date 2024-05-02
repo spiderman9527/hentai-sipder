@@ -9,7 +9,7 @@ python -m venv [venv-folder] & [venv-folder]/Scripts/activate
 ```bash
 [venv-folder]/Scripts/deactivate
 ```
-> 该步骤是为了隔离环境，如果你不建议全局安装可跳过该步骤，请先确保系统已安装了python
+> 该步骤是为了隔离环境，如果你使用全局安装可跳过该步骤，请先确保系统已安装了python
 
 #### 2. 安装依赖
 ```shell
@@ -21,5 +21,5 @@ pip install -r requirements.txt
 python src/main.py
 ```
 #### 4. 站点列表
-- [https://www.jpq.me（开发中）](https://www.jpq.me)
+- [https://www.jpq.me（优化中）](https://www.jpq.me)
 - [https://akuma.moe（计划中）](https://akuma.moe)
