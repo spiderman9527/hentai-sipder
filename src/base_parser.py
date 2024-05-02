@@ -4,7 +4,7 @@ import random
 import aiofiles
 
 from fake_useragent import UserAgent
-from os import remove, path
+from os import path
 from util_libs.color import red_txt, blue_txt, green_txt, orange_txt
 from util_libs.date import datetime_title
 
@@ -110,8 +110,6 @@ class BaseParser:
     async def full_download(self, url: str, file_path: str, timeout: aiohttp.ClientTimeout, retry=0):
         async with self._session.get(url, headers=self._headers, timeout=timeout) as res:
             if res.status == 200:
-                if path.exists(file_path):
-                    remove(file_path)
                 async with aiofiles.open(file_path, "wb") as f:
                     print(blue_txt(datetime_title("{}下载".format("开始" if not retry else "第{}次重新".format(retry)))) + file_path)
 

@@ -6,7 +6,7 @@ import aiohttp
 from aiohttp import ClientTimeout, TCPConnector
 from bs4 import BeautifulSoup
 from os import path, makedirs
-from typing import List
+from typing import List, Coroutine, Any
 from base_parser import BaseParser
 from util_libs.color import blue_txt, orange_txt
 from util_libs.date import datetime_title
@@ -31,7 +31,7 @@ class JPQParser(BaseParser):
 
     async def fetch_page(self, url: str, **keyword: any):
         async with self._session.get(url, headers=self._headers, **keyword) as res:
-            await self.random_sleep(3, 7)
+            await self.random_sleep(2, 6)
 
             if res.status == 200:
                 return await res.content.read()
@@ -60,7 +60,7 @@ class JPQParser(BaseParser):
 
         soup = BeautifulSoup(content, "html.parser")
         links = soup.find_all("a", string=["视频", "漫画"])
-        requests: List[any] = []
+        requests: List[Coroutine[Any, Any, None]] = []
 
         for link in links:
             url = link.attrs.get("href") if "href" in link.attrs else None
@@ -105,6 +105,7 @@ class JPQParser(BaseParser):
         async with self._semaphore:
             print(blue_txt(datetime_title("解析")) + "正在解析视频分类第{}页，地址：{}".format(page, url))
             content = await self.fetch_page(url)
+            requests: List[Coroutine[Any, Any, None]] = []
 
             if content:
                 soup = BeautifulSoup(content, "html.parser")
@@ -123,7 +124,9 @@ class JPQParser(BaseParser):
                         continue
                     # # 资源的文件夹名称
                     folder_name: str = list_entry.attrs.get("title")
-                    await self.parse_video_entrance(href, folder_name)
+                    requests.append(self.parse_video_entrance(href, folder_name))
+
+            await asyncio.gather(*requests)
 
     # 解析视频入口页面
     async def parse_video_entrance(self, url: str, folder_name: str):
@@ -138,6 +141,8 @@ class JPQParser(BaseParser):
         entrances = entrances_soup.find_all(
             "li", attrs={"class": re.compile(r"wp-manga-chapter")}
         )
+
+        requests: List[Coroutine[Any, Any, None]] = []
 
         for entrance in entrances:
             # 视频播放的入口链接
@@ -155,13 +160,23 @@ class JPQParser(BaseParser):
                 "source", attrs={"src": re.compile(video_origin)}
             )
 
+            # 是否已匹配到视频
+            isMatch = False
+
             for resolution in allow_resolution:
+                if (isMatch):
+                    break
+
                 for source in sources:
                     video_url = source.attrs.get("src")
                     match_index = source.find(resolution)
 
                     if match_index != -1:
-                        await self.download_video(video_url, folder_name, file_name + ".mp4")
+                        isMatch = True
+                        requests.append(self.download_video(video_url, folder_name, file_name + ".mp4"))
+                        break
+
+        await asyncio.gather(*requests)
 
     async def download_video(self, url: str, folder_name: str, file_name: str):
         # 格式化文件名称,去除不合规符号
@@ -172,7 +187,7 @@ class JPQParser(BaseParser):
         file_path = path.join(folder_path, file_name)
 
         if path.exists(file_path):
-            return None
+            return
 
         makedirs(folder_path, exist_ok=True)
         await self.download(url, file_path)
