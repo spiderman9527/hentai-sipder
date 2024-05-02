@@ -70,7 +70,7 @@ class BaseParser:
         try:
             if retry > 2:
                 self.fail += 1
-                print(red_txt(datetime_title("已3次下载失败，即将终止下载：")) + file_path)
+                print(red_txt(datetime_title("已3次下载失败，即将终止下载")) + file_path)
                 return
 
             async with self._session.head(url, headers=self._headers) as res:
