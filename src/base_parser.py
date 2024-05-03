@@ -4,7 +4,7 @@ import random
 import aiofiles
 
 from fake_useragent import UserAgent
-from os import path
+from os import path, rename
 from util_libs.color import red_txt, blue_txt, green_txt, orange_txt
 from util_libs.date import datetime_title
 
@@ -66,13 +66,19 @@ class BaseParser:
     async def crawling(self):
         pass
 
-    async def download(self, url: str, file_path: str, retry=0):
-        try:
-            if retry > 2:
-                self.fail += 1
-                print(red_txt(datetime_title("已3次下载失败，即将终止下载")) + file_path)
-                return
+    async def download(self, url: str, save_path: str, retry=0):
+        if path.exists(save_path):
+            return
 
+        if retry > 2:
+            self.fail += 1
+            print(red_txt(datetime_title("已3次下载失败，即将终止下载")) + save_path)
+            return
+
+        # 下载路径，.part用以标识当前文件正在下载
+        download_path = save_path + ".part"
+
+        try:
             async with self._session.head(url, headers=self._headers) as res:
                 # 每重试一次增加5倍的原超时时间
                 timeout = aiohttp.ClientTimeout(total=retry * self._timeout * 5 + self._timeout)
@@ -80,44 +86,48 @@ class BaseParser:
                 if res.status == 200 and res.headers.get("Accept-Ranges"):
                     request_size = res.headers.get("Content-Length")
 
-                    if path.exists(file_path):
-                        file_size = path.getsize(file_path)
+                    if path.exists(download_path):
+                        file_size = path.getsize(download_path)
                         headers = self._headers.copy()
                         headers.update({"Range": "{}-{}".format(file_size + 1, request_size)})
 
                         async with self._session.get(url, headers=headers, timeout=timeout) as res:
                             if res.status == 200:
-                                async with aiofiles.open(file_path, 'ab') as f:
-                                    print(blue_txt("[{}下载：".format("开始" if not retry else "第{}次重新]：".format(retry))) + file_path)
+                                async with aiofiles.open(download_path, 'ab') as f:
+                                    print(blue_txt("[{}下载：".format("开始" if not retry else "第{}次重新]：".format(retry))) + save_path)
 
                                     async for chunk in res.content.iter_any():
                                         await f.write(chunk)
 
-                                    self.success += 1
-                                    print(green_txt("[成功下载]：{}".format(file_path)))
+                                self.success += 1
+                                rename(download_path, save_path)
+                                print(green_txt(datetime_title("成功下载")) + save_path)
                             else:
                                 self.request_err += 1
-                                print(orange_txt("[请求失败]：") + "{}，响应状态码--{}".format(url, res.status))
+                                print(orange_txt(datetime_title("请求失败")) + "{}，响应状态码--{}".format(url, res.status))
                     else:
-                        await self.full_download(url, file_path, timeout, retry)
+                        await self.full_download(url, save_path, timeout, retry)
                 else:
-                    await self.full_download(url, file_path, retry)
+                    await self.full_download(url, save_path, timeout, retry)
         except (aiohttp.ClientPayloadError, asyncio.TimeoutError):
-            print(red_txt(datetime_title("下载失败")) + "{}，即将重试！".format(file_path))
-            await self.download(url, file_path, retry + 1)
+            print(red_txt(datetime_title("下载失败")) + "{}，即将重试！".format(save_path))
+            await self.download(url, save_path, retry + 1)
 
     # 全量下载
-    async def full_download(self, url: str, file_path: str, timeout: aiohttp.ClientTimeout, retry=0):
+    async def full_download(self, url: str, save_path: str, timeout: aiohttp.ClientTimeout, retry=0):
+        download_path = save_path + ".part"
+
         async with self._session.get(url, headers=self._headers, timeout=timeout) as res:
             if res.status == 200:
-                async with aiofiles.open(file_path, "wb") as f:
-                    print(blue_txt(datetime_title("{}下载".format("开始" if not retry else "第{}次重新".format(retry)))) + file_path)
+                async with aiofiles.open(download_path, "wb") as f:
+                    print(blue_txt(datetime_title("{}下载".format("开始" if not retry else "第{}次重新".format(retry)))) + save_path)
 
                     async for chunk in res.content.iter_any():
                         await f.write(chunk)
 
-                    self.success += 1
-                    print(green_txt(datetime_title("下载成功")) + file_path)
+                self.success += 1
+                rename(download_path, save_path)
+                print(green_txt(datetime_title("成功下载")) + save_path)
             else:
                 self.request_err += 1
                 print(orange_txt(datetime_title("请求失败")) + "{}，响应状态码--{}".format(url, res.status))

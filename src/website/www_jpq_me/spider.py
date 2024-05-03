@@ -186,8 +186,5 @@ class JPQParser(BaseParser):
         folder_path = path.join(self._download_dir, folder_name)
         file_path = path.join(folder_path, file_name)
 
-        if path.exists(file_path):
-            return
-
         makedirs(folder_path, exist_ok=True)
         await self.download(url, file_path)

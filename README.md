@@ -9,7 +9,7 @@ python -m venv [venv-folder]
 ```bash
 [venv-folder]/Scripts/activate
 ```
-关闭虚拟环境（当退出项目时再关闭也不迟）：
+关闭虚拟环境（当退出项目时再执行也不迟）：
 ```bash
 [venv-folder]/Scripts/deactivate
 ```
@@ -34,8 +34,3 @@ python src/main.py
 #### 6. 站点列表
 - [https://www.jpq.me（优化中）](https://www.jpq.me)
 - [https://akuma.moe（计划中）](https://akuma.moe)
-
-#### 7. 结语
-该项目最初的目的是为了学习python及爬虫，本人也没有什么爬虫经验，完全是靠着刚学的python语法及对数据获取、分析的笼统概念去设计的该项目。该项目也欢迎大家互相学习、参考及讨论。
-
-最后，我想说的是带着目的去学习，事半功倍！
