@@ -8,8 +8,8 @@ from bs4 import BeautifulSoup
 from os import path, makedirs
 from typing import List, Coroutine, Any
 from base_parser import BaseParser
-from util_libs.color import blue_txt, orange_txt
-from util_libs.date import datetime_title
+from utils.color import blue_txt, orange_txt
+from utils.date import datetime_title
 
 
 class JPQParser(BaseParser):
@@ -153,7 +153,7 @@ class JPQParser(BaseParser):
             play_page = await self.fetch_page(video_entrance_href)
 
             if play_page is None:
-                return
+                break
 
             play_soup = BeautifulSoup(play_page, "html.parser")
             sources: List[str] = play_soup.find_all(

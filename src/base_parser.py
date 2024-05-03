@@ -5,8 +5,8 @@ import aiofiles
 
 from fake_useragent import UserAgent
 from os import path, rename
-from util_libs.color import red_txt, blue_txt, green_txt, orange_txt
-from util_libs.date import datetime_title
+from utils.color import red_txt, blue_txt, green_txt, orange_txt
+from utils.date import datetime_title
 
 
 class BaseParser:
