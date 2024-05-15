@@ -31,8 +31,6 @@ class JPQParser(BaseParser):
 
     async def fetch_page(self, url: str, **keyword: any):
         async with self._session.get(url, headers=self._headers, **keyword) as res:
-            await self.random_sleep(2, 6)
-
             if res.status == 200:
                 return await res.content.read()
             else:
@@ -73,12 +71,15 @@ class JPQParser(BaseParser):
                 pages = await self.get_pages(url)
 
                 for page in range(1, pages + 1):
+                    if page > 2:
+                        break
                     requests.append(self.parse_video_list("{}{}".format(url, "/page/{}".format(page) if not page == 1 else ""), page))
                 pass
             elif type == "漫画":
                 pass
 
         print(blue_txt("{}{}解析开始".format(datetime_title("解析"), base_url)))
+        # self.console.print("[#3498db]{}[/#3498db]{}解析开始".format(datetime_title("解析"), base_url))
         await asyncio.gather(*requests)
 
     # 获取总页数
@@ -153,7 +154,7 @@ class JPQParser(BaseParser):
             play_page = await self.fetch_page(video_entrance_href)
 
             if play_page is None:
-                break
+                continue
 
             play_soup = BeautifulSoup(play_page, "html.parser")
             sources: List[str] = play_soup.find_all(
@@ -173,7 +174,7 @@ class JPQParser(BaseParser):
 
                     if match_index != -1:
                         isMatch = True
-                        requests.append(self.download_video(video_url, folder_name, file_name + ".mp4"))
+                        requests.append(self.download_video(video_url, folder_name, file_name))
                         break
 
         await asyncio.gather(*requests)
@@ -185,6 +186,7 @@ class JPQParser(BaseParser):
 
         folder_path = path.join(self._download_dir, folder_name)
         file_path = path.join(folder_path, file_name)
+        ext = url.split('.')[-1]
 
         makedirs(folder_path, exist_ok=True)
-        await self.download(url, file_path)
+        await self.download(url, "{}.{}".format(file_path, ext))

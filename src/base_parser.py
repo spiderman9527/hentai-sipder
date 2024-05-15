@@ -3,13 +3,14 @@ import asyncio
 import random
 import aiofiles
 
+from abc import ABC, abstractmethod
 from fake_useragent import UserAgent
 from os import path, rename
 from utils.color import red_txt, blue_txt, green_txt, orange_txt
 from utils.date import datetime_title
 
 
-class BaseParser:
+class BaseParser(ABC):
     # 单位s
     _timeout: int
     _session: aiohttp.ClientSession
@@ -63,6 +64,7 @@ class BaseParser:
             self._session = session
             await self.crawling()
 
+    @abstractmethod
     async def crawling(self):
         pass
 
@@ -81,7 +83,7 @@ class BaseParser:
         try:
             async with self._session.head(url, headers=self._headers) as res:
                 # 每重试一次增加5倍的原超时时间
-                timeout = aiohttp.ClientTimeout(total=retry * self._timeout * 5 + self._timeout)
+                timeout = aiohttp.ClientTimeout(total=retry * self._timeout * 2 + self._timeout)
 
                 if res.status == 200 and res.headers.get("Accept-Ranges"):
                     request_size = res.headers.get("Content-Length")
